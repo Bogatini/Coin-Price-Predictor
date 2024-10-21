@@ -20,6 +20,7 @@ from matplotlib import pyplot as plt
 import datetime
 import time
 import csv
+import kagglehub
 
 from keras.models import Sequential
 from keras.layers import Dense
@@ -35,9 +36,6 @@ LSTMUnits = 100
 
 metric = "Close"
 
-#input_csv = "USDT-USD.csv"
-input_csv = "btcusd_1-min_data.csv"
-
                              # y    m  d  h   m   s
 startDate = datetime.datetime(2023, 1, 1, 00, 00, 00) # inclusive
 endDate   = datetime.datetime(2024, 1, 1, 00, 00, 00) # exclusive
@@ -45,7 +43,13 @@ endDate   = datetime.datetime(2024, 1, 1, 00, 00, 00) # exclusive
 startDate = time.mktime(startDate.timetuple()) # turn them into unix
 endDate = time.mktime(endDate.timetuple())
 
-csvData = pd.read_csv(input_csv, header = 0)
+
+# download latest version of the data set
+path = kagglehub.dataset_download("mczielinski/bitcoin-historical-data")
+
+print("Path to dataset files:", path)
+
+csvData = pd.read_csv(path + "\\btcusd_1-min_data.csv", header = 0)
 
 csvData["Datetime"] = pd.to_datetime(csvData["Timestamp"], unit = "s")
 
