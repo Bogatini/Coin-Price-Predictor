@@ -34,15 +34,15 @@ showGraph = True
 epochs = 50
 LSTMUnits = 100
 
-metric = "Close"
+metric = "Close" #OHCL or volume
 
                              # y    m  d  h   m   s
-startDate = datetime.datetime(2023, 1, 1, 00, 00, 00) # inclusive
-endDate   = datetime.datetime(2024, 1, 1, 00, 00, 00) # exclusive
+startDate = datetime.datetime(2020, 1, 1, 00, 00, 00) # inclusive
+#endDate   = datetime.datetime(2024, 1, 1, 00, 00, 00) # exclusive
+endDate = datetime.datetime.now()
 
 startDate = time.mktime(startDate.timetuple()) # turn them into unix
 endDate = time.mktime(endDate.timetuple())
-
 
 # download latest version of the data set
 path = kagglehub.dataset_download("mczielinski/bitcoin-historical-data")
@@ -114,8 +114,9 @@ targetData = standardisedTrainingData[1:]   # all item but the first one - this 
 
 # we are creating a one-to-one mapping of previous values to future predicitons !!! IMPORTANT
 
-# train the model using the new 3D vector inputData
-lstmModel.fit(inputData, targetData, epochs = epochs, batch_size = 32, verbose = showProgress)
+# train the model using the new 3D vector inputData (returns the training data such as loss)
+history = lstmModel.fit(inputData, targetData, epochs = epochs, batch_size = 32, verbose = showProgress)
+
 
 actualPrices = testDataFrame.values
 
@@ -130,14 +131,27 @@ standardizedTestInput = zScoreStandardisation(testInput)            # z score st
 predictedPrice = lstmModel.predict(standardizedTestInput, verbose = showProgress)       # put the standardised data into the model
 
 mean = np.mean(testInput, axis = 0)                             # reverse the standardization of the predicted set to get the usable predicted price
-std = np.std(testInput, axis = 0)                               # THIS USES THE STD AND MEAN NOT FROM THE STANDARDISED SET BUT FROM THE UNSTANDARDISED SET - IDK IF THIS CHANGES ANYTHING
+std = np.std(testInput, axis = 0)                               # THIS USES THE STD AND MEAN NOT FROM THE STANDARDISED SET BUT FROM THE UNSTANDARDISED SET - THIS IS CORRECT
 
-originalPredictedPrice = (predictedPrice * std) + mean
+finalPredictedPrice = (predictedPrice * std) + mean
+
+
+plt.plot(history.history["loss"], label= "Training Loss", color="orange")
+plt.title("Model Loss Over Time")
+plt.ylabel("Loss")
+plt.xlabel("Epochs")
+plt.legend()
+plt.grid()
+
+if showGraph:
+    plt.show()
+
+
 
 dates = timeSlice["Datetime"].dt.date.unique()
 
-plt.plot(dates[:len(originalPredictedPrice)], originalPredictedPrice, color = "red", label = "Predicted Price", linewidth = 0.75)
-plt.plot(dates[:len(actualPrices)], actualPrices, color = "blue", label = "Actual Price", linewidth = 0.75)
+plt.plot(dates[:len(finalPredictedPrice)], finalPredictedPrice, color = "red", label = "Predicted" + metric + " Price", linewidth = 0.75)
+plt.plot(dates[:len(actualPrices)], actualPrices, color = "blue", label = "Actual" + metric + " Price", linewidth = 0.75)
 plt.xlabel("Date")
 plt.ylabel("Price (USD)")
 plt.title("Predicted vs Actual Price")
@@ -146,16 +160,15 @@ plt.legend()
 if showGraph:
     plt.show()
 
-
 from sklearn.metrics import mean_squared_error
 
-print(f"The mean squared error is: {mean_squared_error(actualPrices, originalPredictedPrice)}")
+print(f"The mean squared error is: {mean_squared_error(actualPrices, finalPredictedPrice)}")
 
 if save:
     # save the predicted prices to a CSV file
     outputDataFrame = pd.DataFrame({
-        "Date": dates[:len(originalPredictedPrice)],
-        "Predicted " + metric + " Price": originalPredictedPrice.flatten()
+        "Date": dates[:len(finalPredictedPrice)],
+        "Predicted " + metric + " Price": finalPredictedPrice.flatten()
         })
 
     outputCSV = "predicted"+metric+".csv"
