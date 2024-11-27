@@ -27,19 +27,19 @@ from keras.layers import Dense
 from keras.layers import LSTM
 from keras.layers import Input
 
-save = True # determines if the model and predicted data is saved
+save = False # determines if the model and predicted data is saved
 
-showProgress = 0    # 0 = dont show trainging  1 = show
-showGraph = False
+showProgress = 2    # 0 = dont show trainging  1 = show bar  2 = just show epoch #
+showGraph = True
 epochs = 50
 LSTMUnits = 100
 
 metric = "Close" #OHCL or volume
 
                              # y    m  d  h   m   s
-startDate = datetime.datetime(2012, 1, 1, 00, 00, 00) # inclusive
-endDate   = datetime.datetime(2015, 1, 1, 00, 00, 00) # exclusive
-#endDate = datetime.datetime.now()
+startDate = datetime.datetime(2021, 1, 1, 00, 00, 00) # inclusive
+#endDate   = datetime.datetime(2021, 1, 1, 00, 00, 00) # exclusive
+endDate = datetime.datetime.now()
 
 startDateUnix = time.mktime(startDate.timetuple()) # turn them into unix
 endDateUnix = time.mktime(endDate.timetuple())
@@ -97,8 +97,8 @@ lstmModel.compile(optimizer = "RMSprop", loss = "mean_squared_error")         # 
 # the dense layer takes the output of the LSTM and returns a single predicted value
 ##
 
-print("\n")
-lstmModel.summary()
+#print("\n")
+#lstmModel.summary()
 
 inputData = standardisedTrainingData[:-1]   # all items but the very last one
 inputData = inputData.reshape(len(inputData), 1, 1)     # the LSTM model needs a 3D vector - standardisedTrainingData is 1D and inputData is 3D     # the second dimension determines the # of time
@@ -158,6 +158,31 @@ plt.legend()
 if showGraph:
     plt.show()
 
+
+# this is crap and optional but it checks if the gradients are predicted correctly (they are 100% of the time)
+# this means using gradient to decide whether to buy/sell could be good
+
+actualGradient = np.diff(actualPrices)
+predictedGradient = np.diff(finalPredictedPrice)
+
+for a in actualGradient:
+    if a >0:
+        a=1
+    else:
+        a=-1
+
+for a in predictedGradient:
+    if a >0:
+        a=1
+    else:
+        a=-1
+
+for x in range(len(dates)-1):
+    if actualGradient[x] != predictedGradient[x]:
+        print("Gradients do not match!")
+## end of optional gradient stuff
+
+
 from sklearn.metrics import mean_squared_error
 
 print(f"The mean squared error is: {mean_squared_error(actualPrices, finalPredictedPrice)}")
@@ -177,6 +202,6 @@ if save:
     # save the trained model
     from keras.models import load_model
 
-    fileName = "Trained "+metric+" LSTM Model "+str(startDate.month) +"-"+str(startDate.year)+" to "+str(endDate.month) +"-"+str(endDate.year)+".keras"     #cant use "/" in this for some reason
+    fileName = "Trained "+metric+" LSTM Model "+str(startDate.day)+"." +str(startDate.month) +"."+str(startDate.year)[2:]+" to "+str(endDate.day)+"." +str(endDate.month) +"."+str(endDate.year)[2:]+".keras"     #cant use "/" in this for some reason
     lstmModel.save(fileName)
     print(f"Model saved as {fileName}")
