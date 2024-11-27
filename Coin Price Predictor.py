@@ -27,22 +27,22 @@ from keras.layers import Dense
 from keras.layers import LSTM
 from keras.layers import Input
 
-save = False # determines if the model and predicted data is saved
+save = True # determines if the model and predicted data is saved
 
-showProgress = 0    # 0 = dont show  1 = show
-showGraph = True
+showProgress = 0    # 0 = dont show trainging  1 = show
+showGraph = False
 epochs = 50
 LSTMUnits = 100
 
 metric = "Close" #OHCL or volume
 
                              # y    m  d  h   m   s
-startDate = datetime.datetime(2020, 1, 1, 00, 00, 00) # inclusive
-#endDate   = datetime.datetime(2024, 1, 1, 00, 00, 00) # exclusive
-endDate = datetime.datetime.now()
+startDate = datetime.datetime(2012, 1, 1, 00, 00, 00) # inclusive
+endDate   = datetime.datetime(2015, 1, 1, 00, 00, 00) # exclusive
+#endDate = datetime.datetime.now()
 
-startDate = time.mktime(startDate.timetuple()) # turn them into unix
-endDate = time.mktime(endDate.timetuple())
+startDateUnix = time.mktime(startDate.timetuple()) # turn them into unix
+endDateUnix = time.mktime(endDate.timetuple())
 
 # download latest version of the data set
 path = kagglehub.dataset_download("mczielinski/bitcoin-historical-data")
@@ -53,7 +53,7 @@ csvData = pd.read_csv(path + "\\btcusd_1-min_data.csv", header = 0)
 
 csvData["Datetime"] = pd.to_datetime(csvData["Timestamp"], unit = "s")
 
-timeSlice = csvData[(csvData["Timestamp"] >= startDate) & (csvData["Timestamp"] < endDate)]
+timeSlice = csvData[(csvData["Timestamp"] >= startDateUnix) & (csvData["Timestamp"] < endDateUnix)]
 
 # pandas doesn't like set values onto copies of slices of dataframes, so we should use .loc() instead
 # the colon denotes a null argument
@@ -97,8 +97,8 @@ lstmModel.compile(optimizer = "RMSprop", loss = "mean_squared_error")         # 
 # the dense layer takes the output of the LSTM and returns a single predicted value
 ##
 
-#print("\n")
-#lstmModel.summary()
+print("\n")
+lstmModel.summary()
 
 inputData = standardisedTrainingData[:-1]   # all items but the very last one
 inputData = inputData.reshape(len(inputData), 1, 1)     # the LSTM model needs a 3D vector - standardisedTrainingData is 1D and inputData is 3D     # the second dimension determines the # of time
@@ -122,8 +122,6 @@ actualPrices = testDataFrame.values
 
 testInput = actualPrices.reshape(len(actualPrices), 1)      # turn a wide vector into a tall data frame
 
-# FIX - cant use the function for this because we use STD and mean a little later
-
 standardizedTestInput = zScoreStandardisation(testInput)            # z score standardisation
 
 #print(standardizedTestInput)
@@ -135,7 +133,7 @@ std = np.std(testInput, axis = 0)                               # THIS USES THE 
 
 finalPredictedPrice = (predictedPrice * std) + mean
 
-
+# loss graph
 plt.plot(history.history["loss"], label= "Training Loss", color="orange")
 plt.title("Model Loss Over Time")
 plt.ylabel("Loss")
@@ -146,12 +144,12 @@ plt.grid()
 if showGraph:
     plt.show()
 
-
-
+# price graph
 dates = timeSlice["Datetime"].dt.date.unique()
 
 plt.plot(dates[:len(finalPredictedPrice)], finalPredictedPrice, color = "red", label = "Predicted" + metric + " Price", linewidth = 0.75)
 plt.plot(dates[:len(actualPrices)], actualPrices, color = "blue", label = "Actual" + metric + " Price", linewidth = 0.75)
+plt.xticks(rotation=45)
 plt.xlabel("Date")
 plt.ylabel("Price (USD)")
 plt.title("Predicted vs Actual Price")
@@ -179,5 +177,6 @@ if save:
     # save the trained model
     from keras.models import load_model
 
-    lstmModel.save("Trained "+metric+" LSTM Model.keras")
-    print("Model saved as Trained LSTM Model.keras")
+    fileName = "Trained "+metric+" LSTM Model "+str(startDate.month) +"-"+str(startDate.year)+" to "+str(endDate.month) +"-"+str(endDate.year)+".keras"     #cant use "/" in this for some reason
+    lstmModel.save(fileName)
+    print(f"Model saved as {fileName}")
