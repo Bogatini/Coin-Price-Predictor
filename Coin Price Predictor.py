@@ -3,6 +3,7 @@
 #
 # should i really use all historic data for training? pre-2015 the data is v different to 2020-2024
 # compare pre and post 2020 data
+# +++ post trump election, it spiked like 40%
 #
 # what kind of activation should i use?
 # investigte and write about this in diss
@@ -26,10 +27,11 @@ from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import LSTM
 from keras.layers import Input
+from keras.layers import Dropout
 
 save = False # determines if the model and predicted data is saved
 
-showProgress = 2    # 0 = dont show trainging  1 = show bar  2 = just show epoch #
+showProgress = 0    # 0 = dont show trainging  1 = show bar  2 = just show epoch #
 showGraph = True
 epochs = 50
 LSTMUnits = 100
@@ -37,7 +39,7 @@ LSTMUnits = 100
 metric = "Close" #OHCL or volume
 
                              # y    m  d  h   m   s
-startDate = datetime.datetime(2021, 1, 1, 00, 00, 00) # inclusive
+startDate = datetime.datetime(1999, 1, 1, 00, 00, 00) # inclusive
 #endDate   = datetime.datetime(2021, 1, 1, 00, 00, 00) # exclusive
 endDate = datetime.datetime.now()
 
@@ -59,6 +61,8 @@ timeSlice = csvData[(csvData["Timestamp"] >= startDateUnix) & (csvData["Timestam
 # the colon denotes a null argument
 timeSlice = timeSlice.copy()                                    # honestly no idea why this changes anything but it gets rid of the warning
 timeSlice.loc[:, "Date"] = timeSlice["Datetime"].dt.date
+
+# group the data into daily averages
 
 dataGroup = timeSlice.groupby("Date")
 closePriceGroup = dataGroup[metric]            # change this to OCHL or volume - should probs generalise variable names because theyre just for close price
@@ -88,6 +92,7 @@ standardisedTrainingData = zScoreStandardisation(trainingDataSet)
 lstmModel = Sequential()
 lstmModel.add(Input((1,1)))                     # when using sequential models, an input layer is needed to take single values. these are then passed to the LSTM layer
 lstmModel.add(LSTM(units = LSTMUnits, activation = "tanh"))    # more units = more learning / more training time
+lstmModel.add(Dropout(0.2))
 lstmModel.add(Dense(units = 1))                                               # make sure to only output one unit - this is the single data point on the graph
 lstmModel.compile(optimizer = "RMSprop", loss = "mean_squared_error")         # change these around?
 
